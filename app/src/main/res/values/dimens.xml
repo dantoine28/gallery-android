@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="default_imagelist_size">120dp</dimen>
+    <dimen name="grid_spacer_size">16dp</dimen>
+    <integer name="min_grid_columncount">3</integer>
+</resources>

@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Gallery</string>
+
+    <string name="message_error_retrieveimages">Unable to retrieve images</string>
+    <string name="message_noimages">No images available</string>
+
+    <string name="action_refresh">Refresh</string>
+</resources>
