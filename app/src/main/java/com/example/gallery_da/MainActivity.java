@@ -18,8 +18,6 @@ public class MainActivity extends AppCompatActivity {
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
-        setSupportActionBar(binding.toolbar);
-
         Fragment fragment = getSupportFragmentManager().findFragmentById(R.id.fragment_container);
 
         // If fragment does not exist, initiate

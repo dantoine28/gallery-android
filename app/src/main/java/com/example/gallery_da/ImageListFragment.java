@@ -11,6 +11,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.arch.core.util.Function;
 import androidx.core.view.OneShotPreDrawListener;
+import androidx.core.view.ViewCompat;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
@@ -20,12 +21,15 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import com.example.gallery_da.adapters.ImageListAdapter;
 import com.example.gallery_da.data.ImageResponseItem;
 import com.example.gallery_da.databinding.FragmentImagelistBinding;
+import com.example.gallery_da.helpers.ListAdapterOnClickInterface;
 import com.example.gallery_da.utils.AsyncTask;
 import com.example.gallery_da.utils.HttpUtils;
 import com.example.gallery_da.utils.JSONParser;
 import com.example.gallery_da.viewmodels.ImageViewModel;
 import com.example.gallery_da.viewmodels.ImagesViewModel;
 import com.google.android.material.snackbar.Snackbar;
+import com.google.android.material.transition.Hold;
+import com.google.android.material.transition.MaterialElevationScale;
 import com.google.gson.reflect.TypeToken;
 
 import java.io.InputStream;
@@ -52,6 +56,10 @@ public class ImageListFragment extends Fragment {
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        setExitTransition(new Hold());
+        setExitTransition(new MaterialElevationScale(false));
+        setReenterTransition(new MaterialElevationScale(true));
     }
 
     @Nullable
@@ -68,13 +76,6 @@ public class ImageListFragment extends Fragment {
         mAdapter = new ImageListAdapter();
 
         binding.recyclerView.setHasFixedSize(true);
-        /*
-        binding.recyclerView.addItemDecoration(
-                new SpacerItemDecoration(
-                        requireContext().getResources().getDimensionPixelSize(R.dimen.grid_spacer_size)
-                )
-        );
-         */
 
         binding.recyclerView.setLayoutManager(mLayoutManager);
         binding.recyclerView.setAdapter(mAdapter);
@@ -93,6 +94,22 @@ public class ImageListFragment extends Fragment {
             }
         });
 
+        mAdapter.setOnClickListener(new ListAdapterOnClickInterface<ImageViewModel>() {
+            @Override
+            public void onClick(View view, ImageViewModel item) {
+                mImagesViewModel.getEditorImageData().setValue(item);
+
+                ViewCompat.setTransitionName(view, "shared_element_container");
+
+                requireActivity().getSupportFragmentManager().beginTransaction()
+                        .addSharedElement(view, "shared_element_container")
+                        .replace(R.id.fragment_container, new ImageViewFragment(), "imageviewer")
+                        .addToBackStack("imageviewer")
+                        .setReorderingAllowed(true)
+                        .commit();
+            }
+        });
+
         return binding.getRoot();
     }
 
@@ -100,10 +117,13 @@ public class ImageListFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
+        postponeEnterTransition();
         // Adjust column size
         OneShotPreDrawListener.add(binding.recyclerView, new Runnable() {
             @Override
             public void run() {
+                startPostponedEnterTransition();
+
                 // Set grid span count
                 final int parentWidth = binding.recyclerView.getMeasuredWidth() - binding.recyclerView.getPaddingStart() - binding.recyclerView.getPaddingEnd();
                 final int minColumns = requireContext().getResources().getInteger(R.integer.min_grid_columncount);
@@ -119,7 +139,7 @@ public class ImageListFragment extends Fragment {
             }
         });
 
-        mImagesViewModel = new ViewModelProvider(this).get(ImagesViewModel.class);
+        mImagesViewModel = new ViewModelProvider(requireActivity()).get(ImagesViewModel.class);
 
         mImagesViewModel.getImageData().observe(getViewLifecycleOwner(), new Observer<List<ImageViewModel>>() {
             @Override
