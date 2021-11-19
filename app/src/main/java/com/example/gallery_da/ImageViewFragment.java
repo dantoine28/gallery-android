@@ -2,6 +2,7 @@ package com.example.gallery_da;
 
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -22,6 +23,7 @@ import com.bumptech.glide.RequestManager;
 import com.bumptech.glide.load.DataSource;
 import com.bumptech.glide.load.engine.GlideException;
 import com.bumptech.glide.request.RequestListener;
+import com.bumptech.glide.request.target.ImageViewTarget;
 import com.bumptech.glide.request.target.Target;
 import com.example.gallery_da.databinding.FragmentImageviewBinding;
 import com.example.gallery_da.viewmodels.ImageViewModel;
@@ -31,6 +33,7 @@ import com.google.android.material.transition.MaterialContainerTransform;
 public class ImageViewFragment extends Fragment {
     private FragmentImageviewBinding binding;
     private RequestManager mGlide;
+    private Target<Bitmap> mImageViewTarget;
 
     private ImagesViewModel mImagesViewModel;
 
@@ -68,6 +71,14 @@ public class ImageViewFragment extends Fragment {
                 getParentFragmentManager().popBackStack();
             }
         });
+
+        mImageViewTarget = new ImageViewTarget<Bitmap>(binding.imageView) {
+            @Override
+            protected void setResource(@Nullable Bitmap resource) {
+                // NOTE: Error setting nullable bitmap with ImageView
+                this.view.setImageDrawable(new BitmapDrawable(this.view.getResources(), resource));
+            }
+        };
 
         return binding.getRoot();
     }
@@ -107,7 +118,7 @@ public class ImageViewFragment extends Fragment {
                                 return false;
                             }
                         })
-                        .into(binding.imageView);
+                        .into(mImageViewTarget);
             }
         });
     }
@@ -124,7 +135,7 @@ public class ImageViewFragment extends Fragment {
 
     @Override
     public void onDestroyView() {
-        mGlide.clear(binding.imageView);
+        mGlide.clear(mImageViewTarget);
         super.onDestroyView();
     }
 
