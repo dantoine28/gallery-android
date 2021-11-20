@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@android:color/black"
@@ -17,17 +18,12 @@
         app:navigationIcon="?android:homeAsUpIndicator"
         app:titleTextColor="@android:color/white" />
 
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <com.ortiz.touchview.TouchImageView
+        android:id="@+id/image_view"
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
-
-        <com.ortiz.touchview.TouchImageView
-            android:id="@+id/image_view"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:scaleType="fitCenter" />
-
-    </androidx.constraintlayout.widget.ConstraintLayout>
+        android:layout_height="match_parent"
+        tools:src="@drawable/ic_launcher_foreground"
+        android:scaleType="fitCenter" />
 
     <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
         android:id="@+id/edit_button"

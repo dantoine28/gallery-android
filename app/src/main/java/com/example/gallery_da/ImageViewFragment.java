@@ -80,6 +80,17 @@ public class ImageViewFragment extends Fragment {
             }
         };
 
+        binding.editButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                requireActivity().getSupportFragmentManager().beginTransaction()
+                        .replace(R.id.fragment_container, new ImageEditorFragment(), "imageeditor")
+                        .addToBackStack("imageeditor")
+                        .setReorderingAllowed(true)
+                        .commit();
+            }
+        });
+
         return binding.getRoot();
     }
 

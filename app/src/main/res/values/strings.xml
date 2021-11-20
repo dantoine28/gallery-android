@@ -6,4 +6,15 @@
 
     <string name="action_refresh">Refresh</string>
     <string name="action_edit">Edit</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_save">Save</string>
+    <string name="chioce_editor_filters">Filters</string>
+    <string name="chioce_editor_markup">Markup</string>
+    <string name="chioce_editor_tune">Tune</string>
+    <string name="filter_none">None</string>
+    <string name="filter_grayscale">Grayscale</string>
+    <string name="filter_sepia">Sepia</string>
+    <string name="tune_label_brightness">Brightness</string>
+    <string name="tune_label_contrast">Contrast</string>
+    <string name="tune_label_saturation">Saturation</string>
 </resources>
