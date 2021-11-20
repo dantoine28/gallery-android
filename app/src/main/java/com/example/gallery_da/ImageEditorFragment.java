@@ -12,7 +12,6 @@ import android.graphics.Rect;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
-import android.os.Environment;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -34,9 +33,12 @@ import com.bumptech.glide.load.engine.GlideException;
 import com.bumptech.glide.request.RequestListener;
 import com.bumptech.glide.request.target.ImageViewTarget;
 import com.bumptech.glide.request.target.Target;
+import com.example.gallery_da.data.UploadResponse;
 import com.example.gallery_da.databinding.FragmentImageeditorBinding;
 import com.example.gallery_da.databinding.LayoutChipchoicebuttonBinding;
 import com.example.gallery_da.utils.AsyncTask;
+import com.example.gallery_da.utils.HttpUtils;
+import com.example.gallery_da.utils.JSONParser;
 import com.example.gallery_da.viewmodels.ImageViewModel;
 import com.example.gallery_da.viewmodels.ImagesViewModel;
 import com.google.android.material.chip.Chip;
@@ -49,9 +51,18 @@ import com.ortiz.touchview.OnTouchImageViewListener;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.text.DecimalFormat;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
+
+import okhttp3.MediaType;
+import okhttp3.MultipartBody;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 public class ImageEditorFragment extends Fragment {
     private FragmentImageeditorBinding binding;
@@ -59,6 +70,7 @@ public class ImageEditorFragment extends Fragment {
     private Target<Bitmap> mImageViewTarget;
 
     private ImagesViewModel mImagesViewModel;
+    private ImageViewModel mImageViewModel;
 
     private Bitmap mOriginalBitmap;
     private ColorMatrix mFilterColorMatrix = new ColorMatrix();
@@ -261,6 +273,7 @@ public class ImageEditorFragment extends Fragment {
         float[] values = new float[9];
         m.getValues(values);
 
+        // TODO: issue with text translation using gestures
         float translationX = values[Matrix.MTRANS_X];
         float translationY = values[Matrix.MTRANS_Y];
         float scaleX = values[Matrix.MSCALE_X];
@@ -404,6 +417,8 @@ public class ImageEditorFragment extends Fragment {
         mImagesViewModel.getEditorImageData().observe(getViewLifecycleOwner(), new Observer<ImageViewModel>() {
             @Override
             public void onChanged(ImageViewModel imageViewModel) {
+                mImageViewModel = imageViewModel;
+
                 if (imageViewModel.getImageBitmap() == null) {
                     mGlide.asBitmap()
                             .load(imageViewModel.getImageUrl())
@@ -448,16 +463,50 @@ public class ImageEditorFragment extends Fragment {
         ListenableFuture<Void> task = AsyncTask.run(new Callable<Void>() {
             @Override
             public Void call() throws Exception {
-                // Simple file test
-                File[] availDirs = ctx.getExternalFilesDirs(Environment.DIRECTORY_PICTURES);
-                File rootDir = availDirs[0];
+                //fileUploadTest(ctx);
 
-                File file = new File(rootDir, "test_image.jpg");
-                FileOutputStream fStream = new FileOutputStream(file);
+                OkHttpClient client = HttpUtils.getHttpClient(ctx);
+                Request getUploadUrlRequest = new Request.Builder()
+                        .get()
+                        .url("https://eulerity-hackathon.appspot.com/upload")
+                        .build();
 
-                mEditedBitmap.compress(Bitmap.CompressFormat.JPEG, 100, fStream);
-                fStream.flush();
-                fStream.close();
+                try (Response getUploadUrlResponse = client.newCall(getUploadUrlRequest).execute()) {
+                    if (getUploadUrlResponse.isSuccessful()) {
+                        InputStream stream = getUploadUrlResponse.body().byteStream();
+                        UploadResponse urlResponse = JSONParser.deserializer(stream, UploadResponse.class);
+                        final String uploadURL = urlResponse.getUrl();
+
+                        // Upload image
+                        Request uploadRequest = new Request.Builder()
+                                .post(
+                                        new MultipartBody.Builder()
+                                                .addFormDataPart(
+                                                        "appid",
+                                                        ctx.getPackageName()
+                                                )
+                                                .addFormDataPart(
+                                                        "original",
+                                                        mImageViewModel.getImageUrl()
+                                                )
+                                                .addFormDataPart(
+                                                        "file",
+                                                        "upload.jpg",
+                                                        RequestBody.create(cacheToFile(ctx), MediaType.parse("image/jpeg"))
+                                                )
+                                                .build()
+                                )
+                                .url(uploadURL)
+                                .build();
+
+                        Response uploadResponse = client.newCall(uploadRequest).execute();
+                        if (!uploadResponse.isSuccessful()) {
+                            throw new IllegalStateException(uploadResponse.message());
+                        }
+                    } else {
+                        throw new IllegalStateException(getUploadUrlResponse.message());
+                    }
+                }
 
                 return null;
             }
@@ -492,6 +541,19 @@ public class ImageEditorFragment extends Fragment {
         });
 
         f.show(getParentFragmentManager(), null);
+    }
+
+    private File cacheToFile(@NonNull Context context) throws IOException {
+        File rootDir = context.getCacheDir();
+
+        File file = new File(rootDir, "upload.jpg");
+        FileOutputStream fStream = new FileOutputStream(file);
+
+        mEditedBitmap.compress(Bitmap.CompressFormat.JPEG, 100, fStream);
+        fStream.flush();
+        fStream.close();
+
+        return file;
     }
 
     @Override
