@@ -9,7 +9,7 @@
     <string name="action_cancel">Cancel</string>
     <string name="action_save">Save</string>
     <string name="chioce_editor_filters">Filters</string>
-    <string name="chioce_editor_markup">Markup</string>
+    <string name="chioce_editor_markup">Text</string>
     <string name="chioce_editor_tune">Tune</string>
     <string name="filter_none">None</string>
     <string name="filter_grayscale">Grayscale</string>
@@ -17,4 +17,11 @@
     <string name="tune_label_brightness">Brightness</string>
     <string name="tune_label_contrast">Contrast</string>
     <string name="tune_label_saturation">Saturation</string>
+    <string name="message_uploading">Uploading…</string>
+    <string name="title_savechanges">Save changes</string>
+    <string name="message_savechanges">Would you like to upload your changes?</string>
+    <string name="message_uploadsuccess">Upload successful</string>
+    <string name="message_uploadcancelled">Upload cancelled</string>
+    <string name="message_uploaderror">Error uploading image</string>
+    <string name="message_discardchanges">Would you like to discard your changes?</string>
 </resources>

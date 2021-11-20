@@ -1,13 +1,20 @@
 package com.example.gallery_da;
 
+import android.content.Context;
+import android.content.DialogInterface;
 import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.graphics.ColorMatrix;
 import android.graphics.ColorMatrixColorFilter;
+import android.graphics.Paint;
 import android.graphics.drawable.BitmapDrawable;
 import android.os.Bundle;
+import android.os.Environment;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
@@ -26,13 +33,21 @@ import com.bumptech.glide.request.target.ImageViewTarget;
 import com.bumptech.glide.request.target.Target;
 import com.example.gallery_da.databinding.FragmentImageeditorBinding;
 import com.example.gallery_da.databinding.LayoutChipchoicebuttonBinding;
+import com.example.gallery_da.utils.AsyncTask;
 import com.example.gallery_da.viewmodels.ImageViewModel;
 import com.example.gallery_da.viewmodels.ImagesViewModel;
 import com.google.android.material.chip.Chip;
 import com.google.android.material.chip.ChipGroup;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.slider.Slider;
+import com.google.android.material.snackbar.Snackbar;
+import com.google.common.util.concurrent.ListenableFuture;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.text.DecimalFormat;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CancellationException;
 
 public class ImageEditorFragment extends Fragment {
     private FragmentImageeditorBinding binding;
@@ -41,12 +56,15 @@ public class ImageEditorFragment extends Fragment {
 
     private ImagesViewModel mImagesViewModel;
 
-    private Bitmap mEditorBitmap;
+    private Bitmap mOriginalBitmap;
     private ColorMatrix mFilterColorMatrix = new ColorMatrix();
     private ColorMatrix mCustomColorMatrix = new ColorMatrix();
     private float mCustomSaturation = 1f;
     private float mCustomBrightness = 0f;
     private float mCustomContrast = 1f;
+
+    private Bitmap mEditedBitmap;
+    private final Paint mEditorPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -72,15 +90,52 @@ public class ImageEditorFragment extends Fragment {
             @Override
             protected void setResource(@Nullable Bitmap resource) {
                 // NOTE: Error setting nullable bitmap with ImageView
-                mEditorBitmap = resource;
-                this.view.setImageDrawable(new BitmapDrawable(this.view.getResources(), mEditorBitmap));
+                this.view.setImageDrawable(new BitmapDrawable(this.view.getResources(), resource));
             }
         };
 
         binding.cancelButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                getParentFragmentManager().popBackStack();
+                new MaterialAlertDialogBuilder(v.getContext())
+                        .setMessage(R.string.message_discardchanges)
+                        .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                getParentFragmentManager().popBackStack();
+                            }
+                        })
+                        .show();
+            }
+        });
+
+        binding.saveButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                // Build bitmap image
+                if (mEditedBitmap != null && !mEditedBitmap.isRecycled()) {
+                    mEditedBitmap.recycle();
+                    mEditedBitmap = null;
+                }
+                mEditedBitmap = buildFinalBitmap();
+
+                // Confirm user upload
+                new MaterialAlertDialogBuilder(v.getContext())
+                        .setTitle(R.string.title_savechanges)
+                        .setMessage(R.string.message_savechanges)
+                        .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                performBitmapUpload();
+                            }
+                        })
+                        .setNegativeButton(android.R.string.no, new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                dialog.dismiss();
+                            }
+                        })
+                        .show();
             }
         });
 
@@ -175,6 +230,16 @@ public class ImageEditorFragment extends Fragment {
         binding.tunableSliders.saturationValue.setText(df.format(0));
 
         return binding.getRoot();
+    }
+
+    private Bitmap buildFinalBitmap() {
+        Bitmap result = Bitmap.createBitmap(mOriginalBitmap.getWidth(), mOriginalBitmap.getHeight(), mOriginalBitmap.getConfig());
+        mEditorPaint.setColorFilter(binding.imageView.getColorFilter());
+
+        Canvas canvas = new Canvas(result);
+        canvas.drawBitmap(mOriginalBitmap, 0, 0, mEditorPaint);
+
+        return result;
     }
 
     private void setCustomBrightness(float value) {
@@ -295,6 +360,7 @@ public class ImageEditorFragment extends Fragment {
                             .listener(new RequestListener<Bitmap>() {
                                 @Override
                                 public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Bitmap> target, boolean isFirstResource) {
+                                    mOriginalBitmap = null;
                                     return false;
                                 }
 
@@ -304,6 +370,7 @@ public class ImageEditorFragment extends Fragment {
                                     if (data != null) {
                                         ImageViewModel imageData = data.getValue();
                                         if (imageData != null) {
+                                            mOriginalBitmap = resource;
                                             imageData.setImageBitmap(resource);
                                         }
                                     }
@@ -312,10 +379,65 @@ public class ImageEditorFragment extends Fragment {
                             })
                             .into(mImageViewTarget);
                 } else {
+                    mOriginalBitmap = imageViewModel.getImageBitmap();
                     binding.imageView.setImageDrawable(new BitmapDrawable(binding.imageView.getResources(), imageViewModel.getImageBitmap()));
                 }
             }
         });
+    }
+
+    private void performBitmapUpload() {
+        final Context ctx = requireContext().getApplicationContext();
+
+        final UploadDialogFragment f = new UploadDialogFragment();
+
+        ListenableFuture<Void> task = AsyncTask.run(new Callable<Void>() {
+            @Override
+            public Void call() throws Exception {
+                // Simple file test
+                File[] availDirs = ctx.getExternalFilesDirs(Environment.DIRECTORY_PICTURES);
+                File rootDir = availDirs[0];
+
+                File file = new File(rootDir, "test_image.jpg");
+                FileOutputStream fStream = new FileOutputStream(file);
+
+                mEditedBitmap.compress(Bitmap.CompressFormat.JPEG, 100, fStream);
+                fStream.flush();
+                fStream.close();
+
+                return null;
+            }
+        }, new AsyncTask.Callback<Void>() {
+            @Override
+            public void onSuccess(Void result) {
+                f.dismiss();
+
+                Toast.makeText(ctx, R.string.message_uploadsuccess, Toast.LENGTH_SHORT).show();
+                // Exit editor
+                getParentFragmentManager().popBackStack();
+            }
+
+            @Override
+            public void onFailure(@NonNull Throwable error) {
+                f.dismiss();
+
+                Log.d("ImageEditor", "error saving image", error);
+                if (error instanceof CancellationException || error instanceof InterruptedException) {
+                    Snackbar.make(binding.getRoot(), R.string.message_uploadcancelled, Snackbar.LENGTH_SHORT).show();
+                } else {
+                    Snackbar.make(binding.getRoot(), R.string.message_uploaderror, Snackbar.LENGTH_SHORT).show();
+                }
+            }
+        });
+
+        f.setOnDialogCancelledListener(new DialogInterface.OnCancelListener() {
+            @Override
+            public void onCancel(DialogInterface dialog) {
+                task.cancel(true);
+            }
+        });
+
+        f.show(getParentFragmentManager(), null);
     }
 
     @Override
