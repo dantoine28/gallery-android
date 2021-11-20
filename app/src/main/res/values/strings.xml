@@ -24,4 +24,8 @@
     <string name="message_uploadcancelled">Upload cancelled</string>
     <string name="message_uploaderror">Error uploading image</string>
     <string name="message_discardchanges">Would you like to discard your changes?</string>
+    <string name="action_addtext">Add Text</string>
+    <string name="action_remove">Remove</string>
+    <string name="title_edittext">Edit Text</string>
+    <string name="prompt_add_edittext">Long press to edit text</string>
 </resources>

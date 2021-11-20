@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:layout_width="match_parent"
+    tools:layout_height="match_parent"
+    tools:parentTag="android.widget.FrameLayout"
+    tools:background="@android:color/black">
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/card_view_outline"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:checkable="true"
+        app:cardBackgroundColor="@android:color/transparent"
+        app:cardElevation="0dp"
+        android:elevation="0dp"
+        app:contentPadding="8dp"
+        android:clipChildren="false"
+        android:clipToPadding="false">
+
+        <TextView
+            android:id="@+id/text_view"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:textAppearance="?textAppearanceBody1"
+            android:text="@string/prompt_add_edittext"
+            android:textColor="@android:color/white" />
+
+    </com.google.android.material.card.MaterialCardView>
+</merge>

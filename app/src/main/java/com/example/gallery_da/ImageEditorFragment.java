@@ -6,8 +6,11 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.ColorMatrix;
 import android.graphics.ColorMatrixColorFilter;
+import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.graphics.Rect;
 import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
@@ -42,6 +45,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.slider.Slider;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.ortiz.touchview.OnTouchImageViewListener;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -91,6 +95,7 @@ public class ImageEditorFragment extends Fragment {
             protected void setResource(@Nullable Bitmap resource) {
                 // NOTE: Error setting nullable bitmap with ImageView
                 this.view.setImageDrawable(new BitmapDrawable(this.view.getResources(), resource));
+                updateMarkupContainerMatrix();
             }
         };
 
@@ -99,6 +104,7 @@ public class ImageEditorFragment extends Fragment {
             public void onClick(View v) {
                 new MaterialAlertDialogBuilder(v.getContext())
                         .setMessage(R.string.message_discardchanges)
+                        .setNegativeButton(android.R.string.no, null)
                         .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
@@ -146,6 +152,7 @@ public class ImageEditorFragment extends Fragment {
                 // Toggle editor view visibility
                 binding.filterChipgroup.setVisibility(checkedId == R.id.filters_chip ? View.VISIBLE : View.GONE);
                 binding.tunableSliders.getRoot().setVisibility(checkedId == R.id.manualedit_chip ? View.VISIBLE : View.GONE);
+                binding.addtextButton.setVisibility(checkedId == R.id.markup_chip ? View.VISIBLE : View.GONE);
             }
         });
         binding.filterChipgroup.setOnCheckedChangeListener(new ChipGroup.OnCheckedChangeListener() {
@@ -229,7 +236,52 @@ public class ImageEditorFragment extends Fragment {
         binding.tunableSliders.contrastValue.setText(df.format(0));
         binding.tunableSliders.saturationValue.setText(df.format(0));
 
+        // Text markup
+        binding.addtextButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                binding.textContainer.addView(new MarkupTextView(v.getContext()));
+                updateMarkupContainerMatrix();
+            }
+        });
+
+        binding.imageView.setOnTouchImageViewListener(new OnTouchImageViewListener() {
+            @Override
+            public void onMove() {
+                updateMarkupContainerMatrix();
+            }
+        });
+
         return binding.getRoot();
+    }
+
+    private void updateMarkupContainerMatrix() {
+        Matrix m = binding.imageView.getImageMatrix();
+
+        float[] values = new float[9];
+        m.getValues(values);
+
+        float translationX = values[Matrix.MTRANS_X];
+        float translationY = values[Matrix.MTRANS_Y];
+        float scaleX = values[Matrix.MSCALE_X];
+        float scaleY = values[Matrix.MSCALE_Y];
+
+        binding.textContainer.setScaleX(scaleX);
+        binding.textContainer.setScaleY(scaleY);
+        //binding.textContainer.setTranslationX(translationX);
+        //binding.textContainer.setTranslationY(translationY);
+
+        Drawable d = binding.imageView.getDrawable();
+        if (d != null) {
+            Rect bounds = d.getBounds();
+
+            ViewGroup.LayoutParams lp = binding.textContainer.getLayoutParams();
+            lp.height = (int) bounds.height();
+            lp.width = (int) bounds.width();
+            binding.textContainer.setLayoutParams(lp);
+        }
+
+        binding.textContainer.setTransformationMatrix(new Matrix(m));
     }
 
     private Bitmap buildFinalBitmap() {
@@ -238,6 +290,7 @@ public class ImageEditorFragment extends Fragment {
 
         Canvas canvas = new Canvas(result);
         canvas.drawBitmap(mOriginalBitmap, 0, 0, mEditorPaint);
+        binding.textContainer.draw(canvas);
 
         return result;
     }
@@ -381,6 +434,7 @@ public class ImageEditorFragment extends Fragment {
                 } else {
                     mOriginalBitmap = imageViewModel.getImageBitmap();
                     binding.imageView.setImageDrawable(new BitmapDrawable(binding.imageView.getResources(), imageViewModel.getImageBitmap()));
+                    updateMarkupContainerMatrix();
                 }
             }
         });
